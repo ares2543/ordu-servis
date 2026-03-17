@@ -8,7 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect("mongodb+srv://ares:<B5252FLk>@cluster0.vw1q6eg.mongodb.net/?appName=Cluster0")
+mongoose.connect("mongodb+srv://ares:B5252FLk@cluster0.vw1q6eg.mongodb.net/ordu-servis?retryWrites=true&w=majority")
 .then(() => {
   console.log("MongoDB bağlandı");
 })
