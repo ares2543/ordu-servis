@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ordu Servis Talep Sistemi</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Ordu Öğrenci Servis Yönetimi</h1>
+      <p>Talep oluşturma, servisçi kayıt ve müşteri teklif seçimi.</p>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-button active" data-tab="request">Talep Formu</button>
+      <button class="tab-button" data-tab="driver">Servisçi Girişi</button>
+      <a class="tab-link" href="admin.html">Admin Sayfasına Git</a>
+    </nav>
+
+    <main>
+      <section id="request" class="tab active">
+        <h2>Talep Formu</h2>
+        <form id="requestForm">
+          <div class="grid">
+            <label>Ad <input name="firstName" required /></label>
+            <label>Soyad <input name="lastName" required /></label>
+            <label>Telefon <input name="phone" placeholder="05xx xxx xx xx" required /></label>
+            <label>İlçe
+              <select name="district" id="districtSelect" required></select>
+            </label>
+            <label>Okul
+              <select name="school" id="schoolSelect" required></select>
+            </label>
+            <label>Ev Adresi <input name="homeAddress" required /></label>
+            <label>Gidiş Noktası <input name="fromAddress" required /></label>
+            <label>Varış Noktası <input name="toAddress" required /></label>
+          </div>
+          <div class="row">
+            <button type="button" id="sendOtpBtn">Telefona Doğrulama Kodu Gönder</button>
+            <label>Doğrulama Kodu <input name="otp" id="otpInput" required /></label>
+          </div>
+          <button type="submit">Talebi Gönder</button>
+        </form>
+        <p id="requestStatus" class="status"></p>
+
+        <h3>Müşteri Teklif Seçim Bölümü</h3>
+        <form id="offersLookupForm">
+          <div class="grid">
+            <label>Talep ID <input name="requestId" required /></label>
+            <label>Telefon <input name="phone" required /></label>
+          </div>
+          <button type="submit">Teklifleri Göster</button>
+        </form>
+        <p id="offersStatus" class="status"></p>
+        <div id="offersList"></div>
+      </section>
+
+      <section id="driver" class="tab">
+        <h2>Servisçi Girişi</h2>
+        <form id="driverForm">
+          <div class="grid">
+            <label>Ad Soyad <input name="name" required /></label>
+            <label>Telefon <input name="phone" required /></label>
+            <label>Araç Plakası <input name="plate" required /></label>
+            <label>Hizmet İlçesi
+              <select name="district" id="driverDistrictSelect" required></select>
+            </label>
+            <label>Okul/hat bilgisi <input name="schoolCoverage" required /></label>
+            <label>Servis Ücreti (₺) <input name="fee" type="number" min="0" step="0.01" required /></label>
+          </div>
+          <div class="row">
+            <button type="button" id="sendDriverOtpBtn">Telefona Doğrulama Kodu Gönder</button>
+            <label>Doğrulama Kodu <input name="otp" id="driverOtpInput" required /></label>
+          </div>
+          <button type="submit">Kayıt Ol</button>
+        </form>
+        <p id="driverStatus" class="status"></p>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

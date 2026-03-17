@@ -1,0 +1,134 @@
+:root {
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --text: #1f2937;
+  --accent: #2563eb;
+  --ok: #166534;
+  --warn: #7c2d12;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  padding: 1rem;
+  background: var(--card);
+  border-bottom: 1px solid #dbe3ee;
+}
+
+header h1 { margin: 0; }
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  flex-wrap: wrap;
+}
+
+.tab-button {
+  border: 1px solid #bdd0f7;
+  background: #eaf1ff;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  background: var(--accent);
+  color: white;
+}
+
+
+.tab-link {
+  border: 1px solid #bdd0f7;
+  background: #eaf1ff;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+}
+
+main { padding: 1rem; }
+
+.tab {
+  display: none;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.tab.active { display: block; }
+
+h3 {
+  margin-top: 1.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed #d4dfef;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.92rem;
+}
+
+input,
+select,
+button {
+  padding: 0.6rem;
+  border: 1px solid #c8d3e0;
+  border-radius: 8px;
+}
+
+button {
+  cursor: pointer;
+  background: #e5efff;
+}
+
+.row {
+  margin-top: 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.hidden { display: none; }
+
+.card {
+  border: 1px solid #d7e1ef;
+  padding: 0.75rem;
+  border-radius: 10px;
+  margin: 0.5rem 0;
+  background: #fbfdff;
+}
+
+.status {
+  font-weight: 600;
+  min-height: 1.2rem;
+}
+
+.status.ok { color: var(--ok); }
+.status.warn { color: var(--warn); }
+
+#map {
+  height: 360px;
+  border-radius: 12px;
+  border: 1px solid #c5d3e6;
+  margin-top: 0.8rem;
+}

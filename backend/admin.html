@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ordu Servis Admin</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+  </head>
+  <body>
+    <header>
+      <h1>Admin Sayfası</h1>
+      <p>Talepleri onayla, eşleştir, müşteriye teklif gönder ve servisçiyi bilgilendir.</p>
+    </header>
+
+    <nav class="tabs">
+      <a class="tab-link" href="index.html">Talep/Servisçi Sayfasına Dön</a>
+    </nav>
+
+    <main>
+      <section class="tab active">
+        <h2>Admin Paneli</h2>
+        <div id="adminLogin">
+          <label>Admin Şifresi <input id="adminPassword" type="password" /></label>
+          <button id="adminLoginBtn">Giriş Yap</button>
+          <p id="adminLoginStatus" class="status"></p>
+        </div>
+
+        <div id="adminContent" class="hidden">
+          <h3>1) Gelen Talepler</h3>
+          <div id="pendingRequests"></div>
+
+          <h3>2) İlçe/Okul Bazlı Uygun Servis Eşleştirme</h3>
+          <div id="matchingBoard"></div>
+
+          <h3>3) Müşteri Seçimi Sonrası Servisçiye Bildirilecekler</h3>
+          <div id="selectedAssignments"></div>
+
+          <h3>4) Arşiv</h3>
+          <label>Telefon Numarası ile Ara <input id="archiveSearch" placeholder="05xx..." /></label>
+          <div id="archiveRequests"></div>
+
+          <h3>5) Kayıtlı Servisçiler</h3>
+          <div id="driversList"></div>
+
+          <h3>6) Ödeme Yönetimi</h3>
+          <form id="paymentForm">
+            <label>Talep ID <input name="requestId" required /></label>
+            <label>Tutar (₺) <input name="amount" type="number" min="0" step="0.01" required /></label>
+            <button type="submit">Ödemeyi İşle (Admin Payı %15)</button>
+          </form>
+          <p id="paymentStatus" class="status"></p>
+
+          <h3>7) Servis Takip / Bildirim / Durak Haritası</h3>
+          <div class="row">
+            <button id="simulateApproachBtn">Servis 10 dk Bildirimi Gönder</button>
+            <button id="pickupNextBtn">Sıradaki Öğrenciyi Aldı Olarak İşaretle</button>
+          </div>
+          <p id="trackingStatus" class="status"></p>
+          <div id="map"></div>
+        </div>
+      </section>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="admin.js"></script>
+  </body>
+</html>
