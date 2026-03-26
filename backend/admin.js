@@ -1,5 +1,5 @@
 const ADMIN_PASSWORD = 'B5252FLK';
-const STORAGE_KEY = 'orduServiceState';
+const API_BASE = '';
 
 const state = {
   map: null,
@@ -13,18 +13,16 @@ const sampleStops = [
   { name: 'Öğrenci 3 - Kabadüz Durak', lat: 40.8601, lng: 37.8848 }
 ];
 
-function loadData() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return { requests: [], drivers: [], archive: [], sentOffers: {} };
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { requests: [], drivers: [], archive: [], sentOffers: {} };
+async function api(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'İstek başarısız' }));
+    throw new Error(err.message || 'İstek başarısız');
   }
-}
-
-function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  return response.json();
 }
 
 function setStatus(id, text, type = 'ok') {
@@ -34,13 +32,7 @@ function setStatus(id, text, type = 'ok') {
   el.className = `status ${type}`;
 }
 
-function pushToArchive(data, request, status) {
-  request.status = status;
-  data.archive.push({ ...request });
-}
-
-function renderPendingRequests() {
-  const data = loadData();
+async function renderPendingRequests(data) {
   const container = document.getElementById('pendingRequests');
   if (!data.requests.length) {
     container.innerHTML = '<p>Bekleyen talep yok.</p>';
@@ -62,10 +54,8 @@ function renderPendingRequests() {
   `).join('');
 }
 
-function renderMatchingBoard() {
-  const data = loadData();
+function renderMatchingBoard(data) {
   const container = document.getElementById('matchingBoard');
-
   if (!data.requests.length) {
     container.innerHTML = '<p>Eşleşme bekleyen talep yok.</p>';
     return;
@@ -76,16 +66,13 @@ function renderMatchingBoard() {
     const options = matched.length
       ? matched.map(d => `<li>${d.name} | ${d.plate} | Ücret: ₺${Number(d.fee).toFixed(2)} | ${d.schoolCoverage}</li>`).join('')
       : '<li>Bu ilçe için uygun servis bulunamadı.</li>';
-
     return `<div class="card"><b>${req.id}</b> - ${req.district} / ${req.school}<ul>${options}</ul></div>`;
   }).join('');
 }
 
-function renderSelectedAssignments() {
-  const data = loadData();
+function renderSelectedAssignments(data) {
   const container = document.getElementById('selectedAssignments');
   const selected = data.requests.filter(r => r.selectedDriverId && !r.driverNotified);
-
   if (!selected.length) {
     container.innerHTML = '<p>Müşteri seçimi sonrası bildirilecek kayıt yok.</p>';
     return;
@@ -103,8 +90,7 @@ function renderSelectedAssignments() {
   }).join('');
 }
 
-function renderArchive() {
-  const data = loadData();
+function renderArchive(data) {
   const search = document.getElementById('archiveSearch').value.trim();
   const filtered = data.archive.filter(item => !search || item.phone.includes(search));
   const container = document.getElementById('archiveRequests');
@@ -114,74 +100,58 @@ function renderArchive() {
     : '<p>Arşiv kaydı bulunamadı.</p>';
 }
 
-function renderDrivers() {
-  const data = loadData();
+function renderDrivers(data) {
   const container = document.getElementById('driversList');
   container.innerHTML = data.drivers.length
     ? data.drivers.map(d => `<div class="card"><b>${d.name}</b> | ${d.phone} | ${d.plate} | İlçe: ${d.district} | Ücret: ₺${Number(d.fee).toFixed(2)} | ${d.schoolCoverage}</div>`).join('')
     : '<p>Kayıtlı servisçi yok.</p>';
 }
 
-function renderAll() {
-  renderPendingRequests();
-  renderMatchingBoard();
-  renderSelectedAssignments();
-  renderArchive();
-  renderDrivers();
+async function renderAll() {
+  const data = await api('/admin/state');
+  await renderPendingRequests(data);
+  renderMatchingBoard(data);
+  renderSelectedAssignments(data);
+  renderArchive(data);
+  renderDrivers(data);
 }
 
-window.approveRequest = function approveRequest(id) {
-  const data = loadData();
-  const request = data.requests.find(r => r.id === id);
-  if (!request) return;
-  request.status = 'Onaylandı';
-  saveData(data);
-  renderAll();
-};
-
-window.rejectRequest = function rejectRequest(id) {
-  const data = loadData();
-  const idx = data.requests.findIndex(r => r.id === id);
-  if (idx < 0) return;
-  const request = data.requests[idx];
-  pushToArchive(data, request, 'Reddedildi');
-  data.requests.splice(idx, 1);
-  saveData(data);
-  renderAll();
-};
-
-window.sendMatchingOffers = function sendMatchingOffers(id) {
-  const data = loadData();
-  const request = data.requests.find(r => r.id === id);
-  if (!request) return;
-
-  const matchedDrivers = data.drivers.filter(d => d.district === request.district);
-  if (!matchedDrivers.length) {
-    setStatus('adminLoginStatus', `${request.district} için eşleşen servisçi yok.`, 'warn');
-    return;
+window.approveRequest = async function approveRequest(id) {
+  try {
+    await api(`/admin/requests/${id}/approve`, { method: 'POST' });
+    await renderAll();
+  } catch (error) {
+    setStatus('adminLoginStatus', error.message, 'warn');
   }
-
-  data.sentOffers[id] = matchedDrivers.map(d => d.id);
-  request.status = 'Teklifler müşteriye gönderildi';
-  saveData(data);
-  setStatus('adminLoginStatus', `${id} için ${matchedDrivers.length} servis seçeneği müşteriye gönderildi.`, 'ok');
-  renderAll();
 };
 
-window.notifyDriverForRequest = function notifyDriverForRequest(requestId) {
-  const data = loadData();
-  const idx = data.requests.findIndex(r => r.id === requestId);
-  if (idx < 0) return;
+window.rejectRequest = async function rejectRequest(id) {
+  try {
+    await api(`/admin/requests/${id}/reject`, { method: 'POST' });
+    await renderAll();
+  } catch (error) {
+    setStatus('adminLoginStatus', error.message, 'warn');
+  }
+};
 
-  const request = data.requests[idx];
-  const driver = data.drivers.find(d => d.id === request.selectedDriverId);
-  request.driverNotified = true;
-  pushToArchive(data, request, `Servisçiye bildirildi (${driver ? driver.name : 'Bilinmiyor'})`);
-  data.requests.splice(idx, 1);
-  saveData(data);
+window.sendMatchingOffers = async function sendMatchingOffers(id) {
+  try {
+    const result = await api(`/admin/requests/${id}/send-offers`, { method: 'POST' });
+    setStatus('adminLoginStatus', `${id} için ${result.count} servis seçeneği müşteriye gönderildi.`, 'ok');
+    await renderAll();
+  } catch (error) {
+    setStatus('adminLoginStatus', error.message, 'warn');
+  }
+};
 
-  setStatus('trackingStatus', `${request.id} talebi ${driver ? driver.name : 'seçilen servisçiye'} başarıyla bildirildi.`, 'ok');
-  renderAll();
+window.notifyDriverForRequest = async function notifyDriverForRequest(id) {
+  try {
+    const result = await api(`/admin/requests/${id}/notify-driver`, { method: 'POST' });
+    setStatus('trackingStatus', `${result.requestId} talebi ${result.driverName || 'servisçiye'} bildirildi.`, 'ok');
+    await renderAll();
+  } catch (error) {
+    setStatus('trackingStatus', error.message, 'warn');
+  }
 };
 
 function initMap() {
@@ -199,20 +169,21 @@ function initMap() {
   });
 }
 
-document.getElementById('adminLoginBtn').addEventListener('click', () => {
+document.getElementById('adminLoginBtn').addEventListener('click', async () => {
   const input = document.getElementById('adminPassword').value;
   if (input !== ADMIN_PASSWORD) {
     setStatus('adminLoginStatus', 'Şifre yanlış.', 'warn');
     return;
   }
-
   document.getElementById('adminContent').classList.remove('hidden');
   setStatus('adminLoginStatus', 'Admin girişi başarılı.', 'ok');
   initMap();
-  renderAll();
+  await renderAll();
 });
 
-document.getElementById('archiveSearch').addEventListener('input', renderArchive);
+document.getElementById('archiveSearch').addEventListener('input', () => {
+  renderAll();
+});
 
 document.getElementById('paymentForm').addEventListener('submit', e => {
   e.preventDefault();

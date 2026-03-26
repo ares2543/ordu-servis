@@ -5,17 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ordu Servis Talep Sistemi</title>
     <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
   </head>
   <body>
     <header>
       <h1>Ordu Öğrenci Servis Yönetimi</h1>
-      <p>Talep oluşturma, servisçi kayıt ve müşteri teklif seçimi.</p>
+      <p>Talep oluşturma, servisçi kayıt, teklif seçimi ve canlı takip.</p>
     </header>
 
     <nav class="tabs">
       <button class="tab-button active" data-tab="request">Talep Formu</button>
       <button class="tab-button" data-tab="driver">Servisçi Girişi</button>
-      <a class="tab-link" href="admin.html">Admin Sayfasına Git</a>
     </nav>
 
     <main>
@@ -30,7 +35,8 @@
               <select name="district" id="districtSelect" required></select>
             </label>
             <label>Okul
-              <select name="school" id="schoolSelect" required></select>
+              <input name="school" id="schoolInput" list="schoolOptions" placeholder="Okul adını yazın veya listeden seçin" required />
+              <datalist id="schoolOptions"></datalist>
             </label>
             <label>Ev Adresi <input name="homeAddress" required /></label>
             <label>Gidiş Noktası <input name="fromAddress" required /></label>
@@ -44,16 +50,22 @@
         </form>
         <p id="requestStatus" class="status"></p>
 
-        <h3>Müşteri Teklif Seçim Bölümü</h3>
+        <h3>Müşteri Teklif ve Takip Bölümü</h3>
         <form id="offersLookupForm">
           <div class="grid">
             <label>Talep ID <input name="requestId" required /></label>
             <label>Telefon <input name="phone" required /></label>
           </div>
-          <button type="submit">Teklifleri Göster</button>
+          <div class="row">
+            <button type="submit">Teklifleri Göster</button>
+            <button type="button" id="startTrackingBtn">Leaflet ile Servisi Takip Et</button>
+          </div>
         </form>
         <p id="offersStatus" class="status"></p>
+        <p id="trackingInfo" class="status"></p>
+        <div class="row"><button type="button" id="advanceTrackingBtn">Servis Konumunu Güncelle</button></div>
         <div id="offersList"></div>
+        <div id="customerMap"></div>
       </section>
 
       <section id="driver" class="tab">
@@ -73,12 +85,21 @@
             <button type="button" id="sendDriverOtpBtn">Telefona Doğrulama Kodu Gönder</button>
             <label>Doğrulama Kodu <input name="otp" id="driverOtpInput" required /></label>
           </div>
-          <button type="submit">Kayıt Ol</button>
+          <div class="row">
+            <button type="submit">Kayıt Ol</button>
+            <button type="button" id="startDriverLiveBtn">Canlı Konum Paylaşımı Başlat</button>
+          </div>
         </form>
         <p id="driverStatus" class="status"></p>
       </section>
     </main>
 
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="schools-data.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -1,31 +1,37 @@
-const STORAGE_KEY = 'orduServiceState';
+const API_BASE = '';
 
-const districtsToSchools = {
-  Altınordu: ['Atatürk Anadolu Lisesi', 'Durugöl Ortaokulu', 'Cumhuriyet İlkokulu'],
-  Ulubey: ['Ulubey Anadolu İmam Hatip Lisesi', 'Ulubey Ortaokulu'],
-  Kabadüz: ['Kabadüz Çok Programlı Anadolu Lisesi', 'Kabadüz Ortaokulu'],
-  Fatsa: ['Fatsa Fen Lisesi', 'Fatsa Mehmet Akif Ersoy Ortaokulu'],
-  Ünye: ['Ünye Anadolu Lisesi', 'Ünye Atatürk Ortaokulu'],
-  Perşembe: ['Perşembe Anadolu Lisesi'],
-  Gülyalı: ['Gülyalı Çok Programlı Anadolu Lisesi'],
-  Gölköy: ['Gölköy Anadolu Lisesi']
-};
+const districtsToSchools = (() => {
+  const map = {};
+  const raw = (window.ORDU_SCHOOL_RAW || '').split('\n');
 
-const pageState = { otp: null, driverOtp: null };
+  for (const line of raw) {
+    const match = line.trim().match(/^([A-ZÇĞİÖŞÜ]+)\s+(\d{5,6})\s+(.+)$/u);
+    if (!match) continue;
 
-function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return { requests: [], drivers: [], archive: [], sentOffers: {} };
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { requests: [], drivers: [], archive: [], sentOffers: {} };
+    let district = match[1];
+    if (district === 'AKKUL') district = 'AKKUŞ';
+
+    const name = match[3].trim();
+    const prettyDistrict = district
+      .toLocaleLowerCase('tr-TR')
+      .replace(/(^|\s)\S/g, char => char.toLocaleUpperCase('tr-TR'));
+
+    if (!map[prettyDistrict]) map[prettyDistrict] = [];
+    if (!map[prettyDistrict].includes(name)) map[prettyDistrict].push(name);
   }
-}
 
-function saveState(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
+  return map;
+})();
+
+
+const pageState = {
+  otp: null,
+  driverOtp: null,
+  customerMap: null,
+  customerMarker: null,
+  pollTimer: null,
+  driverWatchId: null
+};
 
 function setStatus(id, text, type = 'ok') {
   const el = document.getElementById(id);
@@ -53,8 +59,88 @@ function populateDistrictSelect(selectId) {
 }
 
 function populateSchools(district) {
-  const schoolSelect = document.getElementById('schoolSelect');
-  schoolSelect.innerHTML = (districtsToSchools[district] || []).map(s => `<option value="${s}">${s}</option>`).join('');
+  const schoolOptions = document.getElementById('schoolOptions');
+  const schoolInput = document.getElementById('schoolInput');
+  const schools = districtsToSchools[district] || [];
+  schoolOptions.innerHTML = schools.map(s => `<option value="${s}">${s}</option>`).join('');
+  if (schools.length) schoolInput.value = schools[0];
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'İstek başarısız' }));
+    throw new Error(err.message || 'İstek başarısız');
+  }
+  return response.json();
+}
+
+function initCustomerMap() {
+  if (pageState.customerMap) return;
+  pageState.customerMap = L.map('customerMap').setView([40.98, 37.88], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(pageState.customerMap);
+}
+
+async function pollServiceLocation() {
+  try {
+    const data = await api('/location');
+    initCustomerMap();
+    const latlng = [data.lat, data.lng];
+    if (!pageState.customerMarker) {
+      pageState.customerMarker = L.marker(latlng).addTo(pageState.customerMap);
+      pageState.customerMarker.bindPopup('Servis canlı konumu');
+    } else {
+      pageState.customerMarker.setLatLng(latlng);
+    }
+    pageState.customerMap.setView(latlng, 14);
+    setStatus('trackingInfo', `Canlı konum güncellendi: ${new Date(data.updatedAt).toLocaleTimeString('tr-TR')}`, 'ok');
+  } catch (error) {
+    setStatus('trackingInfo', error.message, 'warn');
+  }
+}
+
+function startCustomerTracking() {
+  if (pageState.pollTimer) clearInterval(pageState.pollTimer);
+  pollServiceLocation();
+  pageState.pollTimer = setInterval(pollServiceLocation, 3000);
+  setStatus('trackingInfo', 'Canlı takip başladı. Konum her 3 saniyede yenileniyor.', 'ok');
+}
+
+function startDriverLiveLocation() {
+  if (!navigator.geolocation) {
+    setStatus('driverStatus', 'Tarayıcı konum API desteklemiyor.', 'warn');
+    return;
+  }
+
+  if (pageState.driverWatchId) navigator.geolocation.clearWatch(pageState.driverWatchId);
+
+  pageState.driverWatchId = navigator.geolocation.watchPosition(
+    async position => {
+      try {
+        await api('/location', {
+          method: 'POST',
+          body: JSON.stringify({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          })
+        });
+        setStatus('driverStatus', 'Canlı konum sunucuya gönderildi.', 'ok');
+      } catch (error) {
+        setStatus('driverStatus', `Konum gönderimi başarısız: ${error.message}`, 'warn');
+      }
+    },
+    error => {
+      setStatus('driverStatus', `Konum alınamadı: ${error.message}`, 'warn');
+    },
+    { enableHighAccuracy: true, maximumAge: 2000 }
+  );
 }
 
 populateDistrictSelect('districtSelect');
@@ -75,7 +161,7 @@ document.getElementById('sendDriverOtpBtn').addEventListener('click', () => {
   setStatus('driverStatus', `Servisçi doğrulama kodu gönderildi (demo): ${pageState.driverOtp}`, 'ok');
 });
 
-document.getElementById('requestForm').addEventListener('submit', e => {
+document.getElementById('requestForm').addEventListener('submit', async e => {
   e.preventDefault();
   const formData = new FormData(e.target);
 
@@ -84,29 +170,29 @@ document.getElementById('requestForm').addEventListener('submit', e => {
     return;
   }
 
-  const state = loadState();
-  const request = {
-    id: `T-${Date.now()}`,
-    firstName: formData.get('firstName'),
-    lastName: formData.get('lastName'),
-    phone: formData.get('phone'),
-    district: formData.get('district'),
-    school: formData.get('school'),
-    homeAddress: formData.get('homeAddress'),
-    fromAddress: formData.get('fromAddress'),
-    toAddress: formData.get('toAddress'),
-    status: 'Beklemede',
-    selectedDriverId: null,
-    driverNotified: false
-  };
+  try {
+    const request = await api('/requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        firstName: formData.get('firstName'),
+        lastName: formData.get('lastName'),
+        phone: formData.get('phone'),
+        district: formData.get('district'),
+        school: formData.get('school'),
+        homeAddress: formData.get('homeAddress'),
+        fromAddress: formData.get('fromAddress'),
+        toAddress: formData.get('toAddress')
+      })
+    });
 
-  state.requests.push(request);
-  saveState(state);
-  setStatus('requestStatus', `Talebiniz alındı. Talep numarası: ${request.id}`, 'ok');
-  e.target.reset();
+    setStatus('requestStatus', `Talebiniz alındı. Talep numarası: ${request.id}`, 'ok');
+    e.target.reset();
+  } catch (error) {
+    setStatus('requestStatus', error.message, 'warn');
+  }
 });
 
-document.getElementById('driverForm').addEventListener('submit', e => {
+document.getElementById('driverForm').addEventListener('submit', async e => {
   e.preventDefault();
   const formData = new FormData(e.target);
 
@@ -115,41 +201,40 @@ document.getElementById('driverForm').addEventListener('submit', e => {
     return;
   }
 
-  const state = loadState();
-  const driver = {
-    id: `S-${Date.now()}`,
-    name: formData.get('name'),
-    phone: formData.get('phone'),
-    plate: formData.get('plate'),
-    district: formData.get('district'),
-    schoolCoverage: formData.get('schoolCoverage'),
-    fee: Number(formData.get('fee'))
-  };
+  try {
+    const driver = await api('/drivers', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: formData.get('name'),
+        phone: formData.get('phone'),
+        plate: formData.get('plate'),
+        district: formData.get('district'),
+        schoolCoverage: formData.get('schoolCoverage'),
+        fee: Number(formData.get('fee'))
+      })
+    });
 
-  state.drivers.push(driver);
-  saveState(state);
-  setStatus('driverStatus', `Servisçi kaydı alındı: ${driver.name} (₺${driver.fee.toFixed(2)})`, 'ok');
-  e.target.reset();
+    setStatus('driverStatus', `Servisçi kaydı alındı: ${driver.name} (₺${driver.fee.toFixed(2)})`, 'ok');
+    e.target.reset();
+  } catch (error) {
+    setStatus('driverStatus', error.message, 'warn');
+  }
 });
 
-function getOfferDrivers(state, requestId) {
-  const driverIds = state.sentOffers[requestId] || [];
-  return state.drivers.filter(d => driverIds.includes(d.id));
-}
-
-window.selectOffer = function selectOffer(requestId, driverId) {
-  const state = loadState();
-  const request = state.requests.find(r => r.id === requestId);
-  if (!request) return;
-
-  request.selectedDriverId = driverId;
-  request.status = 'Müşteri servis seçimini yaptı';
-  saveState(state);
-  setStatus('offersStatus', `${requestId} için servis seçiminiz alındı. Admin sayfasına iletildi.`, 'ok');
-  renderOffers();
+window.selectOffer = async function selectOffer(requestId, driverId) {
+  try {
+    await api('/offers/select', {
+      method: 'POST',
+      body: JSON.stringify({ requestId, driverId })
+    });
+    setStatus('offersStatus', `${requestId} için servis seçiminiz alındı. Admin sayfasına iletildi.`, 'ok');
+    renderOffers();
+  } catch (error) {
+    setStatus('offersStatus', error.message, 'warn');
+  }
 };
 
-function renderOffers() {
+async function renderOffers() {
   const form = document.getElementById('offersLookupForm');
   const requestId = form.elements.requestId.value.trim();
   const phone = form.elements.phone.value.trim();
@@ -157,38 +242,41 @@ function renderOffers() {
 
   if (!requestId || !phone) return;
 
-  const state = loadState();
-  const request = state.requests.find(r => r.id === requestId) || state.archive.find(r => r.id === requestId);
+  try {
+    const data = await api(`/offers?requestId=${encodeURIComponent(requestId)}&phone=${encodeURIComponent(phone)}`);
+    const drivers = data.drivers || [];
 
-  if (!request || request.phone !== phone) {
-    offersContainer.innerHTML = '';
-    setStatus('offersStatus', 'Talep bulunamadı veya telefon doğrulanamadı.', 'warn');
-    return;
-  }
+    if (!drivers.length) {
+      offersContainer.innerHTML = '';
+      setStatus('offersStatus', 'Henüz size gönderilmiş servis teklifi yok.', 'warn');
+      return;
+    }
 
-  const drivers = getOfferDrivers(state, requestId);
-  if (!drivers.length) {
-    offersContainer.innerHTML = '';
-    setStatus('offersStatus', 'Henüz size gönderilmiş servis teklifi yok.', 'warn');
-    return;
-  }
-
-  offersContainer.innerHTML = drivers.map(driver => `
-    <div class="card">
-      <b>${driver.name}</b> | ${driver.plate}<br/>
-      İlçe: ${driver.district}<br/>
-      Hat: ${driver.schoolCoverage}<br/>
-      Ücret: ₺${Number(driver.fee).toFixed(2)}
-      <div class="row">
-        <button onclick="selectOffer('${requestId}', '${driver.id}')">Bu Servisi Seç</button>
+    offersContainer.innerHTML = drivers.map(driver => `
+      <div class="card">
+        <b>${driver.name}</b> | ${driver.plate}<br/>
+        İlçe: ${driver.district}<br/>
+        Hat: ${driver.schoolCoverage}<br/>
+        Ücret: ₺${Number(driver.fee).toFixed(2)}
+        <div class="row">
+          <button onclick="selectOffer('${requestId}', '${driver.id}')">Bu Servisi Seç</button>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `).join('');
 
-  setStatus('offersStatus', `${drivers.length} servis seçeneği bulundu.`, 'ok');
+    setStatus('offersStatus', `${drivers.length} servis seçeneği bulundu.`, 'ok');
+  } catch (error) {
+    offersContainer.innerHTML = '';
+    setStatus('offersStatus', error.message, 'warn');
+  }
 }
 
 document.getElementById('offersLookupForm').addEventListener('submit', e => {
   e.preventDefault();
   renderOffers();
 });
+
+document.getElementById('startTrackingBtn').addEventListener('click', startCustomerTracking);
+document.getElementById('advanceTrackingBtn').addEventListener('click', pollServiceLocation);
+document.getElementById('startDriverLiveBtn').addEventListener('click', startDriverLiveLocation);
+

@@ -132,3 +132,10 @@ button {
   border: 1px solid #c5d3e6;
   margin-top: 0.8rem;
 }
+
+#customerMap {
+  height: 360px;
+  border-radius: 12px;
+  border: 1px solid #c5d3e6;
+  margin-top: 0.8rem;
+}

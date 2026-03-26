@@ -1,26 +1,46 @@
 # Ordu Servis Uygulaması (MVP)
 
-Bu demo Ordu için iki ayrı sayfadan oluşur:
+Bu proje **Node.js + Express backend** ve statik frontend ile tek sunucuda çalışır.
 
-- `index.html`: Talep formu + servisçi girişi + müşteri teklif seçimi
-- `admin.html`: Sadece admin işlemleri (onay/red, eşleştirme, teklif gönderme, servisçiye bildirim, arşiv, ödeme, harita)
-
-## Özellikler
-
-- Talep formu + telefon doğrulama (demo OTP)
-- Servisçi girişi + telefon doğrulama + servis ücreti alanı
-- Admin paneli ayrı sayfa ve şifreli giriş (`B5252FLK`)
-- İlçe/okul bazlı eşleştirme ve müşteriye teklif gönderme
-- Müşterinin tekliflerden servis seçmesi
-- Adminin seçilen öğrenciyi ilgili servisçiye bildirmesi
-- Arşivleme, telefon ile arama, ödeme ve harita takip simülasyonları
-- Sayfalar arası veri paylaşımı için `localStorage`
-
-## Çalıştırma
+## Hızlı Başlangıç
 
 ```bash
-python3 -m http.server 8000
+npm install
+npm start
 ```
 
-- Müşteri/servisçi ekranı: `http://localhost:8000`
-- Admin ekranı: `http://localhost:8000/admin.html`
+- Uygulama: `http://localhost:3000`
+- Admin: `http://localhost:3000/admin.html`
+- Health: `http://localhost:3000/health`
+
+## Sayfalar
+
+- `index.html`: Talep formu + servisçi girişi + müşteri teklif seçimi + canlı takip
+- `admin.html`: Admin işlemleri (onay/red, eşleştirme, teklif gönderme, servisçiye bildirim, arşiv, ödeme, harita)
+
+## Konum API
+
+- `GET /location` → mevcut servis konumu
+- `POST /location` → servis konumu güncelle
+
+## Diğer API'ler
+
+- `POST /requests` / `GET /requests`
+- `POST /drivers` / `GET /drivers`
+- `GET /offers?requestId=...&phone=...`
+- `POST /offers/select`
+- `GET /admin/state`
+- `POST /admin/requests/:id/approve`
+- `POST /admin/requests/:id/reject`
+- `POST /admin/requests/:id/send-offers`
+- `POST /admin/requests/:id/notify-driver`
+
+## Render Deploy
+
+Repo kökünde `render.yaml` hazırdır. Render'da repo bağlayıp deploy edebilirsin.
+
+
+## Okul Listesi
+
+- Tüm Ordu ilçeleri için ilkokul/ortaokul/lise okul önerileri forma eklendi.
+- Okul alanı datalist desteklidir; listede yoksa okul adı manuel yazılabilir.
